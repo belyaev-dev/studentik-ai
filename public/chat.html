@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.0-beta.7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .chat-area {
+        flex: 1;
+        overflow: auto;
+        padding: 10px;
+      }
+      .message {
+        max-width: 70%;
+        padding: 10px;
+        margin: 5px;
+        border-radius: 10px;
+      }
+      .ai-message {
+        background-color: #0099cc;
+        color: white;
+        align-self: flex-start;
+      }
+      .user-message {
+        background-color: white;
+        color: black;
+        align-self: flex-end;
+        border: 1px solid #ccc;
+      }
+      .input-area {
+        padding: 10px;
+        background-color: #f2f2f2;
+        display: flex;
+        align-items: center;
+      }
+      .input-area input {
+        flex: 1;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      .input-area button {
+        margin-left: 10px;
+        padding: 5px 10px;
+        background-color: #0099cc;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .message button {
+        margin-top: 5px;
+        background-color: #0099cc;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        padding: 5px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="studentik">
+      <div class="chat-area">
+        <div
+          v-for="message in messages"
+          :class="['message', message.sender === 'ai' ? 'ai-message' : 'user-message']"
+        >
+          {{ message.text }}
+          <div v-if="message.sender === 'ai' && message.buttons">
+            <button v-for="button in message.buttons" @click="buttonClick(button)">
+              {{ button }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="input-area">
+        <input type="text" v-model="customMessage" />
+        <button @click="sendMessage(customMessage, 'user')">Send</button>
+      </div>
+    </div>
+
+    <script>
+      const app = Vue.createApp({
+        data() {
+          return {
+            isLoading: true,
+            messages: [
+              {
+                text: 'Привет! Я Студентик, твой помощник по выбору карьеры и университета. Я помогу тебе выбрать будущую профессию, подобрать учебное заведение и способ финансирования. Также расскажу о преимуществах профессии и средней зарплате в России. Чем я могу тебе помочь?',
+                sender: 'ai',
+                buttons: ['Выбор профессии', 'Выбор университета', 'Финансирование обучения']
+              }
+            ],
+            response: '',
+            buttons: [],
+            customMessage: '',
+            dialogId: ''
+          }
+        },
+        mounted() {
+          // Get the dialog ID from cookies
+          this.dialogId = this.getCookie('dialogId') || this.generateDialogId()
+          this.loadChat()
+        },
+        methods: {
+          async loadChat() {
+            // try {
+            //   this.isLoading = true
+            //   const res = await axios.post(
+            //     `https://api.easyvuz.ru/v1/studentik/message/${this.dialogId}`
+            //   )
+            //   this.processResponse(res.data)
+            // } finally {
+            //   this.isLoading = false
+            // }
+          },
+          async sendMessage(text, sender) {
+            if (text.trim() === '') return // Prevent empty messages
+
+            this.messages.push({ text, sender })
+            this.customMessage = '' // Clear the input field
+
+            // Send the message to the AI and process the response
+            try {
+              const res = await axios.post(
+                `https://api.easyvuz.ru/v1/studentik/message/${this.dialogId}`,
+                { message: text }
+              )
+              console.log(res, res.data, res.data.data)
+              this.processResponse(res.data.data)
+            } catch (err) {
+              console.error(err)
+            }
+          },
+          processResponse(data) {
+            console.log('my processResponse', data)
+            if (data.response && data.response.trim() !== '') {
+              this.messages.push({ text: data.response, sender: 'ai', buttons: data.buttons })
+            }
+            this.response = data.response
+            this.buttons = data.buttons
+          },
+          buttonClick(text) {
+            this.sendMessage(text, 'user')
+          },
+          generateDialogId() {
+            const dialogId = Math.random().toString(36).substring(7)
+            this.setCookie('dialogId', dialogId, 30)
+            return dialogId
+          },
+          getCookie(name) {
+            const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+            return match ? match[2] : null
+          },
+          setCookie(name, value, days) {
+            const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString()
+            document.cookie = name + '=' + value + '; expires=' + expires + '; path=/'
+          }
+        }
+      })
+
+      app.mount('#studentik')
+    </script>
+  </body>
+</html>
